@@ -134,9 +134,9 @@ impl fmt::Display for PackageName {
 }
 
 #[derive(Debug)]
-struct Error {
-    span: Span,
-    msg: String,
+pub struct Error {
+    pub span: Span,
+    pub msg: String,
 }
 
 impl fmt::Display for Error {
@@ -188,17 +188,15 @@ impl UnresolvedPackage {
     pub fn parse_dir(path: &Path) -> Result<Self> {
         let mut map = SourceMap::default();
         let cx = || format!("failed to read directory {path:?}");
-        for entry in path.read_dir().with_context(&cx)? {
-            let entry = entry.with_context(&cx)?;
+        for entry in path.read_dir().with_context(cx)? {
+            let entry = entry.with_context(cx)?;
             let path = entry.path();
-            let ty = entry.file_type().with_context(&cx)?;
+            let ty = entry.file_type().with_context(cx)?;
             if ty.is_dir() {
                 continue;
             }
-            if ty.is_symlink() {
-                if path.is_dir() {
-                    continue;
-                }
+            if ty.is_symlink() && path.is_dir() {
+                continue;
             }
             let filename = match path.file_name().and_then(|s| s.to_str()) {
                 Some(name) => name,
@@ -235,6 +233,47 @@ pub struct World {
 
     /// The package that owns this world.
     pub package: Option<PackageId>,
+}
+
+impl World {
+    fn add_import(
+        &mut self,
+        resolve: &Resolve,
+        key: WorldKey,
+        id: InterfaceId,
+    ) {
+            if self.imports.contains_key(&key) {
+                return;
+            }
+
+            resolve.foreach_interface_dep(id, |dep| {
+                self.add_import(resolve, WorldKey::Interface(dep), dep);
+            });
+
+            let prev = self.imports.insert(key, WorldItem::Interface(id));
+            assert!(prev.is_none());
+        }
+
+    fn add_export(
+        &mut self,
+        resolve: &Resolve,
+        key: WorldKey,
+        id: InterfaceId,
+    ) {
+        if self
+            .exports
+            .insert(key, WorldItem::Interface(id))
+            .is_some()
+        {
+            return;
+        }
+
+        resolve.foreach_interface_dep(id, |dep| {
+            if !self.exports.contains_key(&WorldKey::Interface(dep)) {
+                self.add_export(resolve, WorldKey::Interface(dep), dep);
+            }
+        });
+    }
 }
 
 /// The key to the import/export maps of a world. Either a kebab-name or a
@@ -584,6 +623,10 @@ impl Results {
             Results::Named(params) => params.len(),
             Results::Anon(_) => 1,
         }
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.len() == 0
     }
 
     pub fn throws<'a>(&self, resolve: &'a Resolve) -> Option<(Option<&'a Type>, Option<&'a Type>)> {

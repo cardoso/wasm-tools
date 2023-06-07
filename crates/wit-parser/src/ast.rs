@@ -59,10 +59,7 @@ impl<'a> Ast<'a> {
                     let mut visit_kind = |kind: &'b ExternKind<'a>| match kind {
                         ExternKind::Interface(_, items) => {
                             for item in items {
-                                match item {
-                                    InterfaceItem::Use(u) => f(None, &u.from, Some(&u.names))?,
-                                    _ => {}
-                                }
+                                if let InterfaceItem::Use(u) = item { f(None, &u.from, Some(&u.names))? }
                             }
                             Ok(())
                         }
@@ -79,10 +76,7 @@ impl<'a> Ast<'a> {
                 }
                 AstItem::Interface(i) => {
                     for item in i.items.iter() {
-                        match item {
-                            InterfaceItem::Use(u) => f(Some(&i.name), &u.from, Some(&u.names))?,
-                            _ => {}
-                        }
+                        if let InterfaceItem::Use(u) = item { f(Some(&i.name), &u.from, Some(&u.names))? }
                     }
                 }
                 AstItem::Use(u) => {
@@ -423,9 +417,9 @@ pub struct Id<'a> {
 }
 
 impl<'a> From<&'a str> for Id<'a> {
-    fn from(s: &'a str) -> Id<'a> {
+    fn from(name: &'a str) -> Id<'a> {
         Id {
-            name: s.into(),
+            name,
             span: Span { start: 0, end: 0 },
         }
     }
@@ -670,7 +664,7 @@ impl<'a> TypeDef<'a> {
                 tokens,
                 Token::LeftBrace,
                 Token::RightBrace,
-                |docs, tokens| Ok(Value::parse(tokens, docs)?),
+                |docs, tokens| Value::parse(tokens, docs),
             )?,
         });
         Ok(TypeDef { docs, name, ty })
@@ -980,12 +974,12 @@ impl<'a> Type<'a> {
 
             // `foo`
             Some((span, Token::Id)) => Ok(Type::Name(Id {
-                name: tokens.parse_id(span)?.into(),
+                name: tokens.parse_id(span)?,
                 span,
             })),
             // `%foo`
             Some((span, Token::ExplicitId)) => Ok(Type::Name(Id {
-                name: tokens.parse_explicit_id(span)?.into(),
+                name: tokens.parse_explicit_id(span)?,
                 span,
             })),
 
@@ -1061,7 +1055,7 @@ pub struct SourceMap {
 }
 
 #[derive(Clone)]
-struct Source {
+pub struct Source {
     offset: u32,
     path: PathBuf,
     contents: String,

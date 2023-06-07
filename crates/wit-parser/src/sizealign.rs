@@ -82,10 +82,8 @@ impl SizeAlign {
         cases: impl IntoIterator<Item = Option<&'a Type>>,
     ) -> usize {
         let mut max_align = 1;
-        for ty in cases {
-            if let Some(ty) = ty {
-                max_align = max_align.max(self.align(ty));
-            }
+        for ty in cases.into_iter().flatten() {
+            max_align = max_align.max(self.align(ty));
         }
         let tag_size = int_size_align(tag).0;
         align_to(tag_size, max_align)
@@ -115,11 +113,9 @@ impl SizeAlign {
         let (discrim_size, discrim_align) = int_size_align(tag);
         let mut case_size = 0;
         let mut case_align = 1;
-        for ty in types {
-            if let Some(ty) = ty {
-                case_size = case_size.max(self.size(ty));
-                case_align = case_align.max(self.align(ty));
-            }
+        for ty in types.into_iter().flatten() {
+            case_size = case_size.max(self.size(ty));
+            case_align = case_align.max(self.align(ty));
         }
         let align = discrim_align.max(case_align);
         (

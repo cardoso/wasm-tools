@@ -15,6 +15,10 @@ impl LiveTypes {
         self.set.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.set.is_empty()
+    }
+
     pub fn add_interface(&mut self, resolve: &Resolve, iface: InterfaceId) {
         let iface = &resolve.interfaces[iface];
         for (_, id) in iface.types.iter() {
@@ -121,9 +125,6 @@ impl LiveTypes {
     }
 
     pub fn add_type(&mut self, resolve: &Resolve, ty: &Type) {
-        match ty {
-            Type::Id(id) => self.add_type_id(resolve, *id),
-            _ => {}
-        }
+        if let Type::Id(id) = ty { self.add_type_id(resolve, *id) }
     }
 }

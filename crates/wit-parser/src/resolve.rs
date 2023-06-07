@@ -84,7 +84,7 @@ impl Resolve {
         let mut order = IndexSet::new();
         let mut visiting = HashSet::new();
         for pkg in deps.values().chain([&pkg]) {
-            visit(&pkg, &deps, &mut order, &mut visiting)?;
+            visit(pkg, &deps, &mut order, &mut visiting)?;
         }
 
         // Using the topological ordering insert each package incrementally.
@@ -228,7 +228,7 @@ impl Resolve {
             self.packages.len()
         );
 
-        let mut map = MergeMap::new(&resolve, &self)?;
+        let mut map = MergeMap::new(&resolve, self)?;
         map.build()?;
         let MergeMap {
             package_map,
@@ -499,9 +499,9 @@ impl Resolve {
         let package = &self.packages[interface.package.unwrap()];
         let mut base = String::new();
         base.push_str(&package.name.namespace);
-        base.push_str(":");
+        base.push(':');
         base.push_str(&package.name.name);
-        base.push_str("/");
+        base.push('/');
         base.push_str(interface.name.as_ref()?);
         if let Some(version) = &package.name.version {
             base.push_str(&format!("@{version}"));
@@ -915,7 +915,7 @@ impl Remap {
             match item {
                 WorldItem::Interface(id) => {
                     let id = self.interfaces[id.index()];
-                    self.add_world_import(resolve, world, name, id);
+                    world.add_import(resolve, name, id);
                 }
                 WorldItem::Function(mut f) => {
                     self.update_function(&mut f);
@@ -932,7 +932,7 @@ impl Remap {
             if let TypeDefKind::Type(Type::Id(other)) = resolve.types[*id].kind {
                 if let TypeOwner::Interface(owner) = resolve.types[other].owner {
                     let name = WorldKey::Interface(owner);
-                    self.add_world_import(resolve, world, name, owner);
+                    world.add_import(resolve, name, owner);
                 }
             }
         }
@@ -944,7 +944,7 @@ impl Remap {
             match item {
                 WorldItem::Interface(id) => {
                     let id = self.interfaces[id.index()];
-                    self.add_world_export(resolve, world, name, id);
+                    world.add_export(resolve, name, id);
                 }
                 WorldItem::Function(mut f) => {
                     self.update_function(&mut f);
@@ -1011,67 +1011,29 @@ impl Remap {
             }
         }
     }
-
-    fn add_world_import(
-        &self,
-        resolve: &Resolve,
-        world: &mut World,
-        key: WorldKey,
-        id: InterfaceId,
-    ) {
-        if world.imports.contains_key(&key) {
-            return;
-        }
-
-        foreach_interface_dep(resolve, id, |dep| {
-            self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
-        });
-        let prev = world.imports.insert(key, WorldItem::Interface(id));
-        assert!(prev.is_none());
-    }
-
-    fn add_world_export(
-        &self,
-        resolve: &Resolve,
-        world: &mut World,
-        key: WorldKey,
-        id: InterfaceId,
-    ) {
-        if world
-            .exports
-            .insert(key, WorldItem::Interface(id))
-            .is_some()
-        {
-            return;
-        }
-
-        foreach_interface_dep(resolve, id, |dep| {
-            if !world.exports.contains_key(&WorldKey::Interface(dep)) {
-                self.add_world_import(resolve, world, WorldKey::Interface(dep), dep);
-            }
-        });
-    }
 }
 
-fn foreach_interface_dep(
-    resolve: &Resolve,
-    interface: InterfaceId,
-    mut f: impl FnMut(InterfaceId),
-) {
-    for (_, ty) in resolve.interfaces[interface].types.iter() {
-        let ty = match resolve.types[*ty].kind {
-            TypeDefKind::Type(Type::Id(id)) => id,
-            _ => continue,
-        };
-        let dep = match resolve.types[ty].owner {
-            TypeOwner::None => continue,
-            TypeOwner::Interface(other) => other,
-            TypeOwner::World(_) => unreachable!(),
-        };
-        if dep != interface {
-            f(dep);
+impl Resolve {
+    pub(crate) fn foreach_interface_dep(
+        &self,
+        interface: InterfaceId,
+        mut f: impl FnMut(InterfaceId),
+        ) {
+            for (_, ty) in self.interfaces[interface].types.iter() {
+                let ty = match self.types[*ty].kind {
+                    TypeDefKind::Type(Type::Id(id)) => id,
+                    _ => continue,
+                };
+                let dep = match self.types[ty].owner {
+                    TypeOwner::None => continue,
+                    TypeOwner::Interface(other) => other,
+                    TypeOwner::World(_) => unreachable!(),
+                };
+                if dep != interface {
+                    f(dep);
+                }
+            }
         }
-    }
 }
 
 struct MergeMap<'a> {
@@ -1304,7 +1266,7 @@ impl<'a> MergeMap<'a> {
                     // if either is unnamed it won't be present in
                     // `interface_map` so this'll return an error.
                     _ => {
-                        if self.interface_map.get(&from) != Some(&into) {
+                        if self.interface_map.get(from) != Some(into) {
                             bail!("interfaces are not the same");
                         }
                     }
