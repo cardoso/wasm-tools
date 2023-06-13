@@ -8,7 +8,7 @@ use std::path::Path;
 
 pub mod abi;
 pub mod ast;
-use ast::lex::Span;
+pub use ast::lex::Span;
 pub use ast::SourceMap;
 mod sizealign;
 pub use sizealign::*;
