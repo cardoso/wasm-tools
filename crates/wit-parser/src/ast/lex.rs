@@ -9,14 +9,14 @@ use self::Token::*;
 
 #[derive(Clone)]
 pub struct Tokenizer<'a> {
-    input: &'a str,
-    span_offset: u32,
-    chars: CrlfFold<'a>,
+    pub input: &'a str,
+    pub span_offset: u32,
+    pub chars: CrlfFold<'a>,
 }
 
 #[derive(Clone)]
-struct CrlfFold<'a> {
-    chars: str::CharIndices<'a>,
+pub struct CrlfFold<'a> {
+    pub chars: str::CharIndices<'a>,
 }
 
 /// A span, designating a range of bytes where a token is located.
