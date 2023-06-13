@@ -36,7 +36,12 @@ impl<'a> Ast<'a> {
 
     fn for_each_path<'b>(
         &'b self,
-        mut f: impl FnMut(Option<&'b Id<'a>>, &'b UsePath<'a>, Option<&'b [UseName<'a>]>) -> Result<()>,
+        mut f: impl FnMut(
+            Option<&'b Id<'a>>,
+            &'b UsePath<'a>,
+            Option<&'b [UseName<'a>]>,
+            WorldOrInterface,
+        ) -> Result<()>,
     ) -> Result<()> {
         for item in self.items.iter() {
             match item {
@@ -49,7 +54,12 @@ impl<'a> Ast<'a> {
                     let mut exports = Vec::new();
                     for item in world.items.iter() {
                         match item {
-                            WorldItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                            WorldItem::Use(u) => {
+                                f(None, &u.from, Some(&u.names), WorldOrInterface::Interface)?
+                            }
+                            WorldItem::Include(i) => {
+                                f(Some(&world.name), &i.from, None, WorldOrInterface::World)?
+                            }
                             WorldItem::Type(_) => {}
                             WorldItem::Import(Import { kind, .. }) => imports.push(kind),
                             WorldItem::Export(Export { kind, .. }) => exports.push(kind),
@@ -60,13 +70,18 @@ impl<'a> Ast<'a> {
                         ExternKind::Interface(_, items) => {
                             for item in items {
                                 match item {
-                                    InterfaceItem::Use(u) => f(None, &u.from, Some(&u.names))?,
+                                    InterfaceItem::Use(u) => f(
+                                        None,
+                                        &u.from,
+                                        Some(&u.names),
+                                        WorldOrInterface::Interface,
+                                    )?,
                                     _ => {}
                                 }
                             }
                             Ok(())
                         }
-                        ExternKind::Path(path) => f(None, path, None),
+                        ExternKind::Path(path) => f(None, path, None, WorldOrInterface::Interface),
                         ExternKind::Func(..) => Ok(()),
                     };
 
@@ -80,13 +95,20 @@ impl<'a> Ast<'a> {
                 AstItem::Interface(i) => {
                     for item in i.items.iter() {
                         match item {
-                            InterfaceItem::Use(u) => f(Some(&i.name), &u.from, Some(&u.names))?,
+                            InterfaceItem::Use(u) => f(
+                                Some(&i.name),
+                                &u.from,
+                                Some(&u.names),
+                                WorldOrInterface::Interface,
+                            )?,
                             _ => {}
                         }
                     }
                 }
                 AstItem::Use(u) => {
-                    f(None, &u.item, None)?;
+                    // At the top-level, we don't know if this is a world or an interface
+                    // It is up to the resolver to decides how to handle this ambiguity.
+                    f(None, &u.item, None, WorldOrInterface::Unknown)?;
                 }
             }
         }
@@ -199,6 +221,7 @@ pub enum WorldItem<'a> {
     Export(Export<'a>),
     Use(Use<'a>),
     Type(TypeDef<'a>),
+    Include(Include<'a>),
 }
 
 impl<'a> WorldItem<'a> {
@@ -220,9 +243,10 @@ impl<'a> WorldItem<'a> {
             }
             Some((_span, Token::Union)) => TypeDef::parse_union(tokens, docs).map(WorldItem::Type),
             Some((_span, Token::Enum)) => TypeDef::parse_enum(tokens, docs).map(WorldItem::Type),
+            Some((_span, Token::Include)) => Include::parse(tokens).map(WorldItem::Include),
             other => Err(err_expected(
                 tokens,
-                "`import`, `export`, `use`, or type definition",
+                "`import`, `export`, `include`, `use`, or type definition",
                 other,
             )
             .into()),
@@ -332,6 +356,14 @@ impl<'a> Interface<'a> {
     }
 }
 
+
+#[derive(Debug)]
+pub enum WorldOrInterface {
+    World,
+    Interface,
+    Unknown,
+}
+
 pub enum InterfaceItem<'a> {
     TypeDef(TypeDef<'a>),
     Value(Value<'a>),
@@ -413,6 +445,41 @@ impl<'a> Use<'a> {
             }
         }
         Ok(Use { from, names })
+    }
+}
+
+pub struct Include<'a> {
+    pub from: UsePath<'a>,
+    pub names: Vec<IncludeName<'a>>,
+}
+
+pub struct IncludeName<'a> {
+    pub name: Id<'a>,
+    pub as_: Id<'a>,
+}
+
+impl<'a> Include<'a> {
+    pub fn parse(tokens: &mut Tokenizer<'a>) -> Result<Self> {
+        tokens.expect(Token::Include)?;
+        let from = UsePath::parse(tokens)?;
+
+        let names = if tokens.eat(Token::With)? {
+            parse_list(
+                tokens,
+                Token::LeftBrace,
+                Token::RightBrace,
+                |_docs, tokens| {
+                    let name = parse_id(tokens)?;
+                    tokens.expect(Token::As)?;
+                    let as_ = parse_id(tokens)?;
+                    Ok(IncludeName { name, as_ })
+                },
+            )?
+        } else {
+            Vec::new()
+        };
+
+        Ok(Include { from, names })
     }
 }
 
@@ -1181,7 +1248,8 @@ impl SourceMap {
                 | lex::Error::Wanted { at, .. }
                 | lex::Error::InvalidCharInId(at, _)
                 | lex::Error::IdPartEmpty(at)
-                | lex::Error::InvalidEscape(at, _) => *at,
+                | lex::Error::InvalidEscape(at, _)
+                | lex::Error::Eof { at, .. } => *at
             };
             let msg = self.highlight_err(pos, None, lex);
             bail!("{msg}")

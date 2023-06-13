@@ -94,6 +94,9 @@ pub enum Token {
     ExplicitId,
 
     Integer,
+
+    Include,
+    With,
 }
 
 #[derive(Eq, PartialEq, Debug)]
@@ -106,9 +109,13 @@ pub enum Error {
     UnterminatedComment(u32),
     Wanted {
         at: u32,
-        expected: &'static str,
-        found: &'static str,
+        expected: Token,
+        found: Token,
     },
+    Eof {
+        at: u32,
+        expected: Token,
+    }
 }
 
 impl<'a> Tokenizer<'a> {
@@ -139,7 +146,7 @@ impl<'a> Tokenizer<'a> {
 
     pub fn parse_id(&self, span: Span) -> Result<&'a str> {
         let ret = self.get_span(span);
-        validate_id(span.start, &ret)?;
+        validate_id(span.start, ret)?;
         Ok(ret)
     }
 
@@ -285,6 +292,8 @@ impl<'a> Tokenizer<'a> {
                     "import" => Import,
                     "export" => Export,
                     "package" => Package,
+                    "include" => Include,
+                    "with" => With,
                     _ => Id,
                 }
             }
@@ -332,15 +341,14 @@ impl<'a> Tokenizer<'a> {
                 } else {
                     Err(Error::Wanted {
                         at: span.start,
-                        expected: expected.describe(),
-                        found: found.describe(),
+                        expected,
+                        found,
                     })
                 }
             }
-            None => Err(Error::Wanted {
+            None => Err(Error::Eof {
                 at: self.span_offset + u32::try_from(self.input.len()).unwrap(),
-                expected: expected.describe(),
-                found: "eof",
+                expected,
             }),
         }
     }
@@ -539,6 +547,8 @@ impl Token {
             World => "keyword `world`",
             Package => "keyword `package`",
             Integer => "an integer",
+            Include => "keyword `include`",
+            With => "keyword `with`",
         }
     }
 }
@@ -552,7 +562,8 @@ impl fmt::Display for Error {
             Error::UnterminatedComment(_) => write!(f, "unterminated block comment"),
             Error::Wanted {
                 expected, found, ..
-            } => write!(f, "expected {}, found {}", expected, found),
+            } => write!(f, "expected {}, found {}", expected.describe(), found.describe()),
+            Error::Eof { expected, .. } => write!(f, "expected {}, found EOF", expected.describe()),
             Error::InvalidCharInId(_, ch) => write!(f, "invalid character in identifier {:?}", ch),
             Error::IdPartEmpty(_) => write!(f, "identifiers must have characters between '-'s"),
             Error::InvalidEscape(_, ch) => write!(f, "invalid escape in string {:?}", ch),
