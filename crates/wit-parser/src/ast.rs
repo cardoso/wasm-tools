@@ -16,8 +16,8 @@ pub mod toposort;
 pub use lex::validate_id;
 
 pub struct Ast<'a> {
-    package_id: Option<PackageName<'a>>,
-    items: Vec<AstItem<'a>>,
+    pub package_id: Option<PackageName<'a>>,
+    pub items: Vec<AstItem<'a>>,
 }
 
 impl<'a> Ast<'a> {
@@ -94,7 +94,7 @@ impl<'a> Ast<'a> {
     }
 }
 
-enum AstItem<'a> {
+pub enum AstItem<'a> {
     Interface(Interface<'a>),
     World(World<'a>),
     Use(ToplevelUse<'a>),
@@ -112,11 +112,11 @@ impl<'a> AstItem<'a> {
 }
 
 #[derive(Debug, Clone)]
-struct PackageName<'a> {
-    span: Span,
-    namespace: Id<'a>,
-    name: Id<'a>,
-    version: Option<(Span, Version)>,
+pub struct PackageName<'a> {
+    pub span: Span,
+    pub namespace: Id<'a>,
+    pub name: Id<'a>,
+    pub version: Option<(Span, Version)>,
 }
 
 impl<'a> PackageName<'a> {
@@ -148,9 +148,9 @@ impl<'a> PackageName<'a> {
     }
 }
 
-struct ToplevelUse<'a> {
-    item: UsePath<'a>,
-    as_: Option<Id<'a>>,
+pub struct ToplevelUse<'a> {
+    pub item: UsePath<'a>,
+    pub as_: Option<Id<'a>>,
 }
 
 impl<'a> ToplevelUse<'a> {
@@ -166,10 +166,10 @@ impl<'a> ToplevelUse<'a> {
     }
 }
 
-struct World<'a> {
-    docs: Docs<'a>,
-    name: Id<'a>,
-    items: Vec<WorldItem<'a>>,
+pub struct World<'a> {
+    pub docs: Docs<'a>,
+    pub name: Id<'a>,
+    pub items: Vec<WorldItem<'a>>,
 }
 
 impl<'a> World<'a> {
@@ -194,7 +194,7 @@ impl<'a> World<'a> {
     }
 }
 
-enum WorldItem<'a> {
+pub enum WorldItem<'a> {
     Import(Import<'a>),
     Export(Export<'a>),
     Use(Use<'a>),
@@ -230,9 +230,9 @@ impl<'a> WorldItem<'a> {
     }
 }
 
-struct Import<'a> {
-    docs: Docs<'a>,
-    kind: ExternKind<'a>,
+pub struct Import<'a> {
+    pub docs: Docs<'a>,
+    pub kind: ExternKind<'a>,
 }
 
 impl<'a> Import<'a> {
@@ -243,9 +243,9 @@ impl<'a> Import<'a> {
     }
 }
 
-struct Export<'a> {
-    docs: Docs<'a>,
-    kind: ExternKind<'a>,
+pub struct Export<'a> {
+    pub docs: Docs<'a>,
+    pub kind: ExternKind<'a>,
 }
 
 impl<'a> Export<'a> {
@@ -256,7 +256,7 @@ impl<'a> Export<'a> {
     }
 }
 
-enum ExternKind<'a> {
+pub enum ExternKind<'a> {
     Interface(Id<'a>, Vec<InterfaceItem<'a>>),
     Path(UsePath<'a>),
     Func(Id<'a>, Func<'a>),
@@ -304,10 +304,10 @@ impl<'a> ExternKind<'a> {
     }
 }
 
-struct Interface<'a> {
-    docs: Docs<'a>,
-    name: Id<'a>,
-    items: Vec<InterfaceItem<'a>>,
+pub struct Interface<'a> {
+    pub docs: Docs<'a>,
+    pub name: Id<'a>,
+    pub items: Vec<InterfaceItem<'a>>,
 }
 
 impl<'a> Interface<'a> {
@@ -332,19 +332,19 @@ impl<'a> Interface<'a> {
     }
 }
 
-enum InterfaceItem<'a> {
+pub enum InterfaceItem<'a> {
     TypeDef(TypeDef<'a>),
     Value(Value<'a>),
     Use(Use<'a>),
 }
 
-struct Use<'a> {
-    from: UsePath<'a>,
-    names: Vec<UseName<'a>>,
+pub struct Use<'a> {
+    pub from: UsePath<'a>,
+    pub names: Vec<UseName<'a>>,
 }
 
 #[derive(Debug)]
-enum UsePath<'a> {
+pub enum UsePath<'a> {
     Id(Id<'a>),
     Package { id: PackageName<'a>, name: Id<'a> },
 }
@@ -385,9 +385,9 @@ impl<'a> UsePath<'a> {
     }
 }
 
-struct UseName<'a> {
-    name: Id<'a>,
-    as_: Option<Id<'a>>,
+pub struct UseName<'a> {
+    pub name: Id<'a>,
+    pub as_: Option<Id<'a>>,
 }
 
 impl<'a> Use<'a> {
@@ -418,8 +418,8 @@ impl<'a> Use<'a> {
 
 #[derive(Debug, Clone)]
 pub struct Id<'a> {
-    name: &'a str,
-    span: Span,
+    pub name: &'a str,
+    pub span: Span,
 }
 
 impl<'a> From<&'a str> for Id<'a> {
@@ -433,16 +433,16 @@ impl<'a> From<&'a str> for Id<'a> {
 
 #[derive(Default)]
 pub struct Docs<'a> {
-    docs: Vec<Cow<'a, str>>,
+    pub docs: Vec<Cow<'a, str>>,
 }
 
-struct TypeDef<'a> {
-    docs: Docs<'a>,
-    name: Id<'a>,
-    ty: Type<'a>,
+pub struct TypeDef<'a> {
+    pub docs: Docs<'a>,
+    pub name: Id<'a>,
+    pub ty: Type<'a>,
 }
 
-enum Type<'a> {
+pub enum Type<'a> {
     Bool,
     U8,
     U16,
@@ -472,95 +472,95 @@ enum Type<'a> {
     Union(Union<'a>),
 }
 
-enum Handle<'a> {
+pub enum Handle<'a> {
     Shared { ty: Box<Type<'a>> },
 }
 
-struct Resource<'a> {
-    methods: Vec<Value<'a>>,
+pub struct Resource<'a> {
+    pub methods: Vec<Value<'a>>,
 }
 
-struct Record<'a> {
-    fields: Vec<Field<'a>>,
+pub struct Record<'a> {
+    pub fields: Vec<Field<'a>>,
 }
 
-struct Field<'a> {
-    docs: Docs<'a>,
-    name: Id<'a>,
-    ty: Type<'a>,
+pub struct Field<'a> {
+    pub docs: Docs<'a>,
+    pub name: Id<'a>,
+    pub ty: Type<'a>,
 }
 
-struct Flags<'a> {
-    flags: Vec<Flag<'a>>,
+pub struct Flags<'a> {
+    pub flags: Vec<Flag<'a>>,
 }
 
-struct Flag<'a> {
-    docs: Docs<'a>,
-    name: Id<'a>,
+pub struct Flag<'a> {
+    pub docs: Docs<'a>,
+    pub name: Id<'a>,
 }
 
-struct Variant<'a> {
-    span: Span,
-    cases: Vec<Case<'a>>,
+pub struct Variant<'a> {
+    pub span: Span,
+    pub cases: Vec<Case<'a>>,
 }
 
-struct Case<'a> {
-    docs: Docs<'a>,
-    name: Id<'a>,
-    ty: Option<Type<'a>>,
+pub struct Case<'a> {
+    pub docs: Docs<'a>,
+    pub name: Id<'a>,
+    pub ty: Option<Type<'a>>,
 }
 
-struct Enum<'a> {
-    span: Span,
-    cases: Vec<EnumCase<'a>>,
+pub struct Enum<'a> {
+    pub span: Span,
+    pub cases: Vec<EnumCase<'a>>,
 }
 
-struct EnumCase<'a> {
-    docs: Docs<'a>,
-    name: Id<'a>,
+pub struct EnumCase<'a> {
+    pub docs: Docs<'a>,
+    pub name: Id<'a>,
 }
 
-struct Result_<'a> {
-    ok: Option<Box<Type<'a>>>,
-    err: Option<Box<Type<'a>>>,
+pub struct Result_<'a> {
+    pub ok: Option<Box<Type<'a>>>,
+    pub err: Option<Box<Type<'a>>>,
 }
 
-struct Stream<'a> {
-    element: Option<Box<Type<'a>>>,
-    end: Option<Box<Type<'a>>>,
+pub struct Stream<'a> {
+    pub element: Option<Box<Type<'a>>>,
+    pub end: Option<Box<Type<'a>>>,
 }
 
-struct Value<'a> {
-    docs: Docs<'a>,
-    name: Id<'a>,
-    kind: ValueKind<'a>,
+pub struct Value<'a> {
+    pub docs: Docs<'a>,
+    pub name: Id<'a>,
+    pub kind: ValueKind<'a>,
 }
 
-struct Union<'a> {
-    span: Span,
-    cases: Vec<UnionCase<'a>>,
+pub struct Union<'a> {
+    pub span: Span,
+    pub cases: Vec<UnionCase<'a>>,
 }
 
-struct UnionCase<'a> {
-    docs: Docs<'a>,
-    ty: Type<'a>,
+pub struct UnionCase<'a> {
+    pub docs: Docs<'a>,
+    pub ty: Type<'a>,
 }
 
-type ParamList<'a> = Vec<(Id<'a>, Type<'a>)>;
+pub type ParamList<'a> = Vec<(Id<'a>, Type<'a>)>;
 
-enum ResultList<'a> {
+pub enum ResultList<'a> {
     Named(ParamList<'a>),
     Anon(Type<'a>),
 }
 
-enum ValueKind<'a> {
+pub enum ValueKind<'a> {
     Func(Func<'a>),
     Static(Func<'a>),
 }
 
-struct Func<'a> {
-    params: ParamList<'a>,
-    results: ResultList<'a>,
+pub struct Func<'a> {
+    pub params: ParamList<'a>,
+    pub results: ResultList<'a>,
 }
 
 impl<'a> Func<'a> {
@@ -1056,15 +1056,15 @@ fn err_expected(
 /// [`UnresolvedPackage`].
 #[derive(Clone, Default)]
 pub struct SourceMap {
-    sources: Vec<Source>,
-    offset: u32,
+    pub sources: Vec<Source>,
+    pub offset: u32,
 }
 
 #[derive(Clone)]
-struct Source {
-    offset: u32,
-    path: PathBuf,
-    contents: String,
+pub struct Source {
+    pub offset: u32,
+    pub path: PathBuf,
+    pub contents: String,
 }
 
 impl SourceMap {
