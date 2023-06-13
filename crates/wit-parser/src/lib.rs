@@ -7,7 +7,7 @@ use std::fmt;
 use std::path::Path;
 
 pub mod abi;
-mod ast;
+pub mod ast;
 use ast::lex::Span;
 pub use ast::SourceMap;
 mod sizealign;
