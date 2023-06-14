@@ -540,7 +540,7 @@ pub enum Type<'a> {
 }
 
 pub enum Handle<'a> {
-    Shared { ty: Box<Type<'a>> },
+    Shared { resource: Id<'a> },
 }
 
 pub struct Resource<'a> {
@@ -1040,9 +1040,9 @@ impl<'a> Type<'a> {
             // shared<T>
             Some((_span, Token::Shared)) => {
                 tokens.expect(Token::LessThan)?;
-                let ty = Box::new(Type::parse(tokens)?);
+                let resource = parse_id(tokens)?;
                 tokens.expect(Token::GreaterThan)?;
-                Ok(Type::Handle(Handle::Shared { ty }))
+                Ok(Type::Handle(Handle::Shared { resource }))
             }
 
             // `foo`
